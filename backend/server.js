@@ -4,6 +4,7 @@ import cors from "cors";
 import "dotenv/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+
 const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
 const app = express();
