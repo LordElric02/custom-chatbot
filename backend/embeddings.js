@@ -26,15 +26,21 @@ async function connectDB() {
 }
 
 // Function to save AI data
-const saveEmbedding = async  (question, embedding, answer) => {
-  connectDB()
+const saveEmbedding = async (question, embedding, answer, relatedQuestions) => {
+  await connectDB();
   try {
-    const newEmbedding = new Embedding({ question, embedding, answer });
+    const newEmbedding = new Embedding({
+      question,
+      embedding,
+      answer,
+      related_questions: relatedQuestions,
+    });
     await newEmbedding.save();
     console.log("Embedding saved successfully");
   } catch (error) {
     console.error("Error saving embedding:", error);
   }
-}
+};
+
 
 export { saveEmbedding };

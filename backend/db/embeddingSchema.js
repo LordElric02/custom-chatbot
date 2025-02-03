@@ -3,8 +3,15 @@ import mongoose from "mongoose";
 
 const embeddingSchema = new mongoose.Schema({
   question: String,
-  embedding: [Number], // Store as an array of numbers
+  embedding: Array,
   answer: String,
+  related_questions: [
+    {
+      question: String,
+      answer: String,
+    },
+  ],
 });
+
 
 export default embeddingSchema; // Export only the schema

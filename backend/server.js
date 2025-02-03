@@ -72,7 +72,7 @@ app.post("/gemini", async (req, res) => {
                   }
               }
           },
-          { $match: { score: { $gt: 0.8 } } },
+          { $match: { score: { $gt: 0.9 } } },
           { $sort: { score: -1 } },
           { $limit: 1 }
       ]);
