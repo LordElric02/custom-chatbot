@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import embeddingSchema from "./db/embeddingSchema.js"; // Import the schema
+import embeddingSchema from "../db/embeddingSchema.js"; // Import the schema
 
 // Define the model using the imported schema
 const Embedding = mongoose.model("Embedding", embeddingSchema);
@@ -23,6 +23,11 @@ const dropcollection = async () => {
 
 }
 
+const getParentIdFromUID = async (uid) => {
+  const parentDocument = await Embedding.findOne({ uid });
+  return parentDocument ? parentDocument._id : null;
+};
+
 // Function to save AI data, now including the uid from faqData
 const saveEmbedding = async (faqId, parentId,question, embedding, answer) => {
   await connectDB();
@@ -43,3 +48,4 @@ const saveEmbedding = async (faqId, parentId,question, embedding, answer) => {
 
 export { saveEmbedding };
 export { dropcollection };
+export { getParentIdFromUID };

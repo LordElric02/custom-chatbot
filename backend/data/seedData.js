@@ -1,7 +1,6 @@
 import OpenAI from "openai";
-import {saveEmbedding} from "./embeddings.js";
-import { dropcollection } from "./embeddings.js";
-import faqData from "./data/ai-model.js";
+import { dropcollection, saveEmbedding, getParentIdFromUID } from "./embeddings.js";
+import faqData from "./ai-model.js";
 
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -19,10 +18,11 @@ export const storeEmbeddings = async () => {
       model: "text-embedding-ada-002",
     });
 
-    const verctorId = item.question.replace(/\s+/g, "-").toLowerCase();
+    const verctorId = item.question;
     const vectorValues = response.data[0].embedding;
     const metadata = item.answer;
-    const parentId = item.parent_question;
+    const parentId = item.parent_question ? await getParentIdFromUID(item.parent_question) : null;
+    console.log(`parent id: ${parentId}`);
     const faqId = item.uid; 
     
     // Pass related_questions as well

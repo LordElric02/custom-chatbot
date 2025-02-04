@@ -58,6 +58,12 @@ const faqData = [
     "question": "Is DEI bad for the USA?",
     "answer": "DEI is a very good initiative.",
     "parent_question": null
+  },
+  {
+    "uid": "65a1b2c3d4e5f67890123487",
+    "question": "Who killed Fred Hampton",
+    "answer": "Fred Hampton was killed by Mayor Daley's rogoue police department.",
+    "parent_question": null
   }
 ];
 

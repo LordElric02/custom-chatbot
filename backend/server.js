@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import embeddingSchema from "./db/embeddingSchema.js"; // Assuming you have this in a separate file
-import { storeEmbeddings } from "./seedData.js";
+import { storeEmbeddings } from "./data/seedData.js";
 
 const PORT = process.env.PORT || 5000;
 // Initialize Google Generative AI
@@ -35,7 +35,7 @@ app.post("/gemini", async (req, res) => {
     try {
         const userMessage = req.body.message;
         const userHistory = req.body.history || [];
-        const parentQuestionId = req.body.parentQuestionId ? String(req.body.parentQuestionId) : null;  // Get parent question ID from request, if provided
+        const parentQuestionId = req.body.parentQuestionId ? String(req.body.parentQuestionId) : null;
         console.log(`Parent question ID: ${parentQuestionId}`);
 
         // Generate embedding for user input
@@ -45,8 +45,7 @@ app.post("/gemini", async (req, res) => {
         });
 
         const embedding = embeddingResponse.data[0].embedding;
-        const parentId = new mongoose.Types.ObjectId(parentQuestionId);
-        console.log(`parent id object:${parentId}`);
+        console.log("Generated embedding:", embedding);
 
         // Build the aggregation pipeline
         const aggregationPipeline = [
@@ -54,7 +53,8 @@ app.post("/gemini", async (req, res) => {
                 $project: {
                     question: 1,
                     answer: 1,
-                    uid: 1, // Include uid in the projection
+                    uid: 1,
+                    parent_question: 1, // Include parent_question in the projection
                     score: {
                         $let: {
                             vars: {
@@ -82,32 +82,30 @@ app.post("/gemini", async (req, res) => {
                     }
                 }
             },
-            { 
+            {
                 $match: {
-                    score: { $gt: 0.9 },
-                    ...(parentQuestionId ? { parent_question : new mongoose.Types.ObjectId(parentQuestionId) } : {})  // Only filter by parent_question if provided
+                    score: { $gt: 0.8 },
+                    ...(parentQuestionId ? { parent_question: new mongoose.Types.ObjectId(parentQuestionId) } : {})
                 }
             },
             { $sort: { score: -1 } },
             { $limit: 1 }
         ];
 
-        // Search for similar question in MongoDB
-        // console.log("Aggregation Pipeline:", JSON.stringify(aggregationPipeline, null, 2));
+        console.log("Aggregation Pipeline:", JSON.stringify(aggregationPipeline, null, 2));
 
+        // Search for similar question in MongoDB
         const queryResult = await EmbeddingModel.aggregate(aggregationPipeline);
         console.log("Query Result:", JSON.stringify(queryResult, null, 2));
 
         if (queryResult.length > 0) {
-            // Send back both the answer and the uid
-            return res.json({ answer: queryResult[0].answer, uid: queryResult[0].uid });
+            return res.json({ answer: queryResult[0].answer, uid: queryResult[0]._id });
         }
 
         // Check if an embedding with the same question already exists to avoid duplicates
-        const existingEmbedding = await EmbeddingModel.findOne({ question: userMessage, parent_question: parentQuestionId });
+        const existingEmbedding = await EmbeddingModel.findOne({ question: userMessage, _id : parentQuestionId });
 
         if (existingEmbedding) {
-            // If it exists, return the existing answer
             return res.json({ answer: existingEmbedding.answer, uid: existingEmbedding.uid });
         }
 
@@ -120,11 +118,11 @@ app.post("/gemini", async (req, res) => {
 
         if (response && typeof response.text === "function") {
             const newEmbedding = new EmbeddingModel({
-                uid: new mongoose.Types.ObjectId().toString(),  // Generate new custom ID
+                uid: new mongoose.Types.ObjectId().toString(),
                 question: userMessage,
                 embedding: embedding,
                 answer: response.text(),
-                parent_question: parentQuestionId // Link to parent question if exists
+                parent_question: parentQuestionId
             });
 
             // Save new question and embedding to DB
