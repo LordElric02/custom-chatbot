@@ -23,7 +23,7 @@ export const storeEmbeddings = async () => {
     const vectorValues = response.data[0].embedding;
     const metadata = item.answer;
     const parentId = item.parent_question;
-    const faqId = item._id; 
+    const faqId = item.uid; 
     
     // Pass related_questions as well
     saveEmbedding(faqId,parentId, verctorId,vectorValues, metadata);

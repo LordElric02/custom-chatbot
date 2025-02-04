@@ -26,16 +26,16 @@ app.get("/", (req, res) => {
     res.json({ message: "Hello from server!" });
 });
 
-app.get("/seedmodel", (req, res) => {
-    storeEmbeddings();
-    res.json({ message: "Hello from server!" });
+app.get("/seedmodel", async (req, res) => {
+    await storeEmbeddings();
+    res.json({ message: "model seeded" });
 });
 
 app.post("/gemini", async (req, res) => {
     try {
         const userMessage = req.body.message;
         const userHistory = req.body.history || [];
-        const parentQuestionId = req.body.parentQuestionId || null;  // Get parent question ID from request, if provided
+        const parentQuestionId = req.body.parentQuestionId ? String(req.body.parentQuestionId) : null;  // Get parent question ID from request, if provided
         console.log(`Parent question ID: ${parentQuestionId}`);
 
         // Generate embedding for user input
@@ -46,6 +46,7 @@ app.post("/gemini", async (req, res) => {
 
         const embedding = embeddingResponse.data[0].embedding;
         const parentId = new mongoose.Types.ObjectId(parentQuestionId);
+        console.log(`parent id object:${parentId}`);
 
         // Build the aggregation pipeline
         const aggregationPipeline = [
@@ -53,7 +54,7 @@ app.post("/gemini", async (req, res) => {
                 $project: {
                     question: 1,
                     answer: 1,
-                    _id: 1, // Include _id in the projection
+                    uid: 1, // Include uid in the projection
                     score: {
                         $let: {
                             vars: {
@@ -84,7 +85,7 @@ app.post("/gemini", async (req, res) => {
             { 
                 $match: {
                     score: { $gt: 0.9 },
-                    ...(parentQuestionId ? { parent_question: parentId} : {})  // Only filter by parent_question if provided
+                    ...(parentQuestionId ? { parent_question : new mongoose.Types.ObjectId(parentQuestionId) } : {})  // Only filter by parent_question if provided
                 }
             },
             { $sort: { score: -1 } },
@@ -98,8 +99,8 @@ app.post("/gemini", async (req, res) => {
         console.log("Query Result:", JSON.stringify(queryResult, null, 2));
 
         if (queryResult.length > 0) {
-            // Send back both the answer and the _id
-            return res.json({ answer: queryResult[0].answer, _id: queryResult[0]._id });
+            // Send back both the answer and the uid
+            return res.json({ answer: queryResult[0].answer, uid: queryResult[0].uid });
         }
 
         // Check if an embedding with the same question already exists to avoid duplicates
@@ -107,7 +108,7 @@ app.post("/gemini", async (req, res) => {
 
         if (existingEmbedding) {
             // If it exists, return the existing answer
-            return res.json({ answer: existingEmbedding.answer, _id: existingEmbedding._id });
+            return res.json({ answer: existingEmbedding.answer, uid: existingEmbedding.uid });
         }
 
         // If no match, fallback to Gemini AI
@@ -119,7 +120,7 @@ app.post("/gemini", async (req, res) => {
 
         if (response && typeof response.text === "function") {
             const newEmbedding = new EmbeddingModel({
-                _id: new mongoose.Types.ObjectId().toString(),  // Generate new custom ID
+                uid: new mongoose.Types.ObjectId().toString(),  // Generate new custom ID
                 question: userMessage,
                 embedding: embedding,
                 answer: response.text(),

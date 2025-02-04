@@ -54,10 +54,10 @@ const App = () => {
         }
       ]);
 
-      // If a match is found, store the returned _id to use as parentQuestionId for next questions
-      if (data._id) {
-        setParentQuestionId(data._id);
-        console.log(`Parent question ID: ${data._id}`);
+      // If a match is found, store the returned uid to use as parentQuestionId for next questions
+      if (data.uid) {
+        setParentQuestionId(data.uid);
+        console.log(`Parent question ID: ${data.uid}`);
       }
 
       setValue("");  // Clear the input field

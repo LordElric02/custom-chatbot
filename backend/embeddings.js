@@ -23,12 +23,12 @@ const dropcollection = async () => {
 
 }
 
-// Function to save AI data, now including the _id from faqData
+// Function to save AI data, now including the uid from faqData
 const saveEmbedding = async (faqId, parentId,question, embedding, answer) => {
   await connectDB();
   try {
     const newEmbedding = new Embedding({
-      _id: faqId, // Store the _id from faqData
+      uid: faqId, // Store the uid from faqData
       question,
       embedding,
       answer,
