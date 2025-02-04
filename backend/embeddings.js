@@ -1,16 +1,14 @@
 import mongoose from "mongoose";
 import embeddingSchema from "./db/embeddingSchema.js"; // Import the schema
-import "dotenv/config";
 
 // Define the model using the imported schema
 const Embedding = mongoose.model("Embedding", embeddingSchema);
 
 // MongoDB connection URI
-const MONGODB_URI = "mongodb+srv://patrickglanville:Cz5nZNZSGnnbIFFw@cluster0.ko8ju.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 async function connectDB() {
   try {
-    await mongoose.connect(MONGODB_URI, {
+await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -18,6 +16,11 @@ async function connectDB() {
   } catch (error) {
     console.error("MongoDB connection error:", error);
   }
+}
+
+const dropcollection = async () => {
+  await Embedding.collection.drop();
+
 }
 
 // Function to save AI data, now including the _id from faqData
@@ -39,3 +42,4 @@ const saveEmbedding = async (faqId, parentId,question, embedding, answer) => {
 };
 
 export { saveEmbedding };
+export { dropcollection };

@@ -1,15 +1,17 @@
 import OpenAI from "openai";
-import dotenv from "dotenv/config";
 import {saveEmbedding} from "./embeddings.js";
+import { dropcollection } from "./embeddings.js";
 import faqData from "./data/ai-model.js";
 
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 
-async function storeEmbeddings() {
+
+export const storeEmbeddings = async () => {
   console.log("Preparing embeddings...");
-  let vectors = [];
+  //first drop the existing collection
+  dropcollection();
 
   for (const item of faqData) {
     const response = await openai.embeddings.create({
@@ -30,6 +32,6 @@ async function storeEmbeddings() {
   }
  
   console.log("Batch insert complete!");
-}
+};
 
-storeEmbeddings();
+
