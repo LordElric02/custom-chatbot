@@ -29,6 +29,8 @@ app.post("/gemini", async (req, res) => {
     try {
         const userMessage = req.body.message;
         const userHistory = req.body.history || [];
+        const parentQuestionId = req.body.parentQuestionId || null;  // Get parent question ID from request, if provided
+        console.log(`Parent question ID: ${parentQuestionId}`);
 
         // Generate embedding for user input
         const embeddingResponse = await openai.embeddings.create({
@@ -37,48 +39,69 @@ app.post("/gemini", async (req, res) => {
         });
 
         const embedding = embeddingResponse.data[0].embedding;
+        const parentId = new mongoose.Types.ObjectId(parentQuestionId);
+
+        // Build the aggregation pipeline
+        const aggregationPipeline = [
+            {
+                $project: {
+                    question: 1,
+                    answer: 1,
+                    _id: 1, // Include _id in the projection
+                    score: {
+                        $let: {
+                            vars: {
+                                inputVector: embedding,
+                                storedVector: "$embedding"
+                            },
+                            in: {
+                                $reduce: {
+                                    input: { $zip: { inputs: ["$$inputVector", "$$storedVector"] } },
+                                    initialValue: 0,
+                                    in: {
+                                        $add: [
+                                            "$$value",
+                                            {
+                                                $multiply: [
+                                                    { $arrayElemAt: ["$$this", 0] },
+                                                    { $arrayElemAt: ["$$this", 1] }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            { 
+                $match: {
+                    score: { $gt: 0.9 },
+                    ...(parentQuestionId ? { parent_question: parentId} : {})  // Only filter by parent_question if provided
+                }
+            },
+            { $sort: { score: -1 } },
+            { $limit: 1 }
+        ];
 
         // Search for similar question in MongoDB
-      
-        const queryResult = await EmbeddingModel.aggregate([
-          {
-              $project: {
-                  question: 1,
-                  answer: 1,
-                  score: {
-                      $let: {
-                          vars: {
-                              inputVector: embedding,
-                              storedVector: "$embedding"
-                          },
-                          in: {
-                              $reduce: {
-                                  input: { $zip: { inputs: ["$$inputVector", "$$storedVector"] } },
-                                  initialValue: 0,
-                                  in: {
-                                      $add: [
-                                          "$$value",
-                                          {
-                                              $multiply: [
-                                                  { $arrayElemAt: ["$$this", 0] },
-                                                  { $arrayElemAt: ["$$this", 1] }
-                                              ]
-                                          }
-                                      ]
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
-          },
-          { $match: { score: { $gt: 0.9 } } },
-          { $sort: { score: -1 } },
-          { $limit: 1 }
-      ]);
-      
+        // console.log("Aggregation Pipeline:", JSON.stringify(aggregationPipeline, null, 2));
+
+        const queryResult = await EmbeddingModel.aggregate(aggregationPipeline);
+        console.log("Query Result:", JSON.stringify(queryResult, null, 2));
+
         if (queryResult.length > 0) {
-            return res.json({ answer: queryResult[0].answer });
+            // Send back both the answer and the _id
+            return res.json({ answer: queryResult[0].answer, _id: queryResult[0]._id });
+        }
+
+        // Check if an embedding with the same question already exists to avoid duplicates
+        const existingEmbedding = await EmbeddingModel.findOne({ question: userMessage, parent_question: parentQuestionId });
+
+        if (existingEmbedding) {
+            // If it exists, return the existing answer
+            return res.json({ answer: existingEmbedding.answer, _id: existingEmbedding._id });
         }
 
         // If no match, fallback to Gemini AI
@@ -89,6 +112,17 @@ app.post("/gemini", async (req, res) => {
         const response = result.response;
 
         if (response && typeof response.text === "function") {
+            const newEmbedding = new EmbeddingModel({
+                _id: new mongoose.Types.ObjectId().toString(),  // Generate new custom ID
+                question: userMessage,
+                embedding: embedding,
+                answer: response.text(),
+                parent_question: parentQuestionId // Link to parent question if exists
+            });
+
+            // Save new question and embedding to DB
+            await newEmbedding.save();
+
             res.json({ answer: response.text() });
         } else {
             res.status(500).json({ error: "Unexpected response format" });

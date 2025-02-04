@@ -2,20 +2,15 @@ import mongoose from "mongoose";
 import embeddingSchema from "./db/embeddingSchema.js"; // Import the schema
 import "dotenv/config";
 
-
-
-
 // Define the model using the imported schema
 const Embedding = mongoose.model("Embedding", embeddingSchema);
 
 // MongoDB connection URI
-const MONGODB_URI = "your_mongodb_connection_string"; // Replace with your actual MongoDB URI
+const MONGODB_URI = "mongodb+srv://patrickglanville:Cz5nZNZSGnnbIFFw@cluster0.ko8ju.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 async function connectDB() {
   try {
-    //console.log(`MONGO_URI: ${process.env.MONGO_URI}`);
-    const MONGO_URI="mongodb+srv://patrickglanville:Cz5nZNZSGnnbIFFw@cluster0.ko8ju.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-    await mongoose.connect(MONGO_URI, {
+    await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -25,15 +20,16 @@ async function connectDB() {
   }
 }
 
-// Function to save AI data
-const saveEmbedding = async (question, embedding, answer, relatedQuestions) => {
+// Function to save AI data, now including the _id from faqData
+const saveEmbedding = async (faqId, parentId,question, embedding, answer) => {
   await connectDB();
   try {
     const newEmbedding = new Embedding({
+      _id: faqId, // Store the _id from faqData
       question,
       embedding,
       answer,
-      related_questions: relatedQuestions,
+      parent_question: parentId
     });
     await newEmbedding.save();
     console.log("Embedding saved successfully");
@@ -41,6 +37,5 @@ const saveEmbedding = async (question, embedding, answer, relatedQuestions) => {
     console.error("Error saving embedding:", error);
   }
 };
-
 
 export { saveEmbedding };
